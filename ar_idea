@@ -1,0 +1,18 @@
+Camera calibration
+1. Retrieve intrinsic parameters using MATLAB calibrator on checkboard. Save this to reuse forever.
+
+Create 3D Model
+1. Capture object from various angles ~12. Do this with a fuducial markers.
+Optional but pretty much have to: Segment the object from the background in each of the images. Use TVSeg or GrabCut
+2. Retrieve extrinsic parameters using MATLAB ARToolKit port and MATLAB Camera Calibration tool.
+
+Overlay in Live Video Stream
+1. Pass parameters annd images into voxel coloring framework
+2. Insert into video stream using ARToolKit
+
+
+Intrinsic parameters: focal length, lens distortion coeff
+Extrinsic parameters: cams location in 3D space in relation to fixed obj
+
+Use MATLAB camera calibrator by running "cameraCalibrator" to retrieve these
+but for extrinsics use 4 fiducial markers along with ARToolkit to automatically retrieve
