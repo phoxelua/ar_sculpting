@@ -9,19 +9,19 @@ CFLAG= -O -pthread -I/usr/include/gstreamer-0.10 -I/usr/include/glib-2.0 -I/usr/
 OBJS =
 HEADERS =
 
-all: $(BIN_DIR)/simpleLite
+all: $(BIN_DIR)/main
 
-$(BIN_DIR)/simpleLite: simpleLite.o $(OBJS)
-	cc -o $(BIN_DIR)/simpleLite simpleLite.o $(OBJS) $(LDFLAG) $(LIBS)
+$(BIN_DIR)/main: main.o $(OBJS)
+	cc -o $(BIN_DIR)/main main.o $(OBJS) $(LDFLAG) $(LIBS)
 
-simpleLite.o: simpleLite.c $(HEADERS)
-	cc -c $(CFLAG) simpleLite.c
+main.o: main.c $(HEADERS)
+	cc -c $(CFLAG) main.c
 
 clean:
 	rm -f *.o
-	rm -f $(BIN_DIR)/simpleLite
+	rm -f $(BIN_DIR)/main
 
 allclean:
 	rm -f *.o
-	rm -f $(BIN_DIR)/simpleLite
+	rm -f $(BIN_DIR)/main
 	rm -f Makefile

@@ -1,0 +1,27 @@
+INC_DIR= ../../include
+LIB_DIR= ../../lib
+BIN_DIR= ../../bin
+
+LDFLAG=@LDFLAG@ -L$(LIB_DIR)
+LIBS= -lARgsub_lite -lARvideo -lAR @LIBS@
+CFLAG= @CFLAG@ -I$(INC_DIR)
+
+OBJS =
+HEADERS =
+
+all: $(BIN_DIR)/main
+
+$(BIN_DIR)/main: main.o $(OBJS)
+	cc -o $(BIN_DIR)/main main.o $(OBJS) $(LDFLAG) $(LIBS)
+
+main.o: main.c $(HEADERS)
+	cc -c $(CFLAG) main.c
+
+clean:
+	rm -f *.o
+	rm -f $(BIN_DIR)/main
+
+allclean:
+	rm -f *.o
+	rm -f $(BIN_DIR)/main
+	rm -f Makefile

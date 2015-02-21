@@ -4,11 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>					// malloc(), free()
-#ifdef __APPLE__
-#  include <GLUT/glut.h>
-#else
-#  include <GL/glut.h>
-#endif
+#include <GL/glut.h>
 #include <AR/config.h>
 #include <AR/video.h>
 #include <AR/param.h>			// arParamDisp()
@@ -54,9 +50,82 @@ static ARGL_CONTEXT_SETTINGS_REF gArglSettings = NULL;
 static int gDrawRotate = FALSE;
 static float gDrawRotateAngle = 0;			// For use in drawing.
 
+int num_verts = 100250;
+
+struct triples {
+        double x[100250][3];
+};
+
+static struct triples VERTS;
+
 // ============================================================================
 //	Functions
 // ============================================================================
+
+static void DrawItem(void)
+{
+	printf("%s\n", "Start draw.");
+	static GLuint polyList = 0;
+	float fSize = 30.0f;
+	int i = 0;
+	int j = 0;
+	const vertices[8][3] = { {1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {-1.0, -1.0, 1.0}, {-1.0, 1.0, 1.0},
+	{1.0, 1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0} };
+
+	if (!polyList) {
+		polyList = glGenLists (1);
+		glNewList(polyList, GL_COMPILE);
+		printf("%d\n", num_verts);
+		glBegin (GL_POINTS);
+		for (i = 0; i < num_verts; i++){
+			glColor3f(1.0, 0.0, 1.0);
+			glVertex3f(VERTS.x[i][0]*fSize, VERTS.x[i][1]*fSize, VERTS.x[i][2]*fSize);
+			printf("%d\n", i);
+		}
+		glEnd ();
+		// glColor3f (0.0, 0.0, 0.0); 
+		// glBegin (GL_LINE_LOOP);
+		// for (j = 0; j < 8; j++) {
+		// 	glVertex3f(vertices[i][0]*fSize, vertices[i][1]*fSize, vertices[i][2]*fSize);
+		// }
+		// glEnd ();
+		glEndList ();
+	}
+	
+	glPushMatrix(); // Save world coordinate system.
+	glTranslatef(0.0, 0.0, 0.5); // Place base of cube on marker surface.
+	glRotatef(gDrawRotateAngle, 0.0, 0.0, 1.0); // Rotate about z axis.
+	// glDisable(GL_LIGHTING);	// Just use colours.
+	glCallList(polyList);	// Draw the cube.
+	glPopMatrix();	// Restore world coordinate system.
+	printf("%s\n", "Done drawing!");
+
+}
+
+void parse(void)
+{
+	printf("%s\n", "Starting to parse...");
+	FILE *myfile;
+	// struct triples verts;
+	int i;
+	int j;
+
+
+	myfile=fopen("Data/dragon", "r");
+
+	for(i = 0; i < num_verts; i++)
+	{
+		for (j = 0 ; j < 3; j++)
+		{
+		  fscanf(myfile,"%lf", &VERTS.x[i][j]);
+		}
+	}
+
+
+
+	fclose(myfile);
+	printf("%s\n", "Finshed parsing vertices!");
+}
 
 // Something to look at, draw a rotating colour cube.
 static void DrawCube(void)
@@ -369,7 +438,7 @@ static void Display(void)
 		glLoadMatrixd(m);
 
 		// All lighting and geometry to be drawn relative to the marker goes here.
-		DrawCube();
+		DrawItem();
 	
 	} // gPatt_found
 	
@@ -403,6 +472,19 @@ int main(int argc, char** argv)
 		fprintf(stderr, "main(): Unable to set up AR camera.\n");
 		exit(-1);
 	}
+
+	//Read in ply file
+	parse();
+	// int i;
+	// int j;
+	// for(i = 0; i < num_verts; i++)
+	// {
+	// 	for (j = 0 ; j < 3; j++)
+	// 	{
+	// 	  printf("%lf", VERTS.x[i][j]);
+	// 	}
+	// 	printf("\n");
+	// }	
 
 	// ----------------------------------------------------------------------------
 	// Library setup.
