@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<title>Leap WebSocket JSON Viewer</title>
+<script>
+var ws;
+var paused = false;
+var pauseOnGesture = false;
+
+// Support both the WebSocket and MozWebSocket objects
+if ((typeof(WebSocket) == 'undefined') &&
+    (typeof(MozWebSocket) != 'undefined')) {
+  WebSocket = MozWebSocket;
+}
+
+// Create the socket with event handlers
+function init() {
+  // Create and open the socket
+  ws = new WebSocket("ws://localhost:6437/");
+
+  // On successful connection
+  ws.onopen = function(event) {
+    var enableMessage = JSON.stringify({enableGestures: true});
+    ws.send(enableMessage); // Enable gestures
+    document.getElementById("main").style.visibility = "visible";
+    document.getElementById("connection").innerHTML = "WebSocket connection open!";
+  };
+
+  // On message received
+  ws.onmessage = function(event) {
+    if (!paused) {
+      var obj = JSON.parse(event.data);
+      var str = JSON.stringify(obj, undefined, 2);
+		$.ajax({ 
+		        type: "POST", url: "http://localhost:3000/jay.json", 
+		        contentType: "application/json", data: str, 
+		        error: function(){ alert('Update failed!'); }, 
+		        processData: false, 
+		        success: function(){ alert('Update successful!'); }
+		});      
+      document.getElementById("output").innerHTML = '<pre>' + str + '</pre>';
+      if (pauseOnGesture && obj.gestures.length > 0) {
+        togglePause();
+      }
+    }
+  };
+
+  // On socket close
+  ws.onclose = function(event) {
+    ws = null;
+    document.getElementById("main").style.visibility = "hidden";
+    document.getElementById("connection").innerHTML = "WebSocket connection closed";
+  }
+
+  // On socket error
+  ws.onerror = function(event) {
+    alert("Received error");
+  };
+}
+
+function togglePause() {
+  paused = !paused;
+
+  if (paused) {
+    document.getElementById("pause").innerText = "Resume";
+  } else {
+    document.getElementById("pause").innerText = "Pause";
+  }
+}
+
+function pauseForGestures() {
+  if (document.getElementById("pauseOnGesture").checked) {
+    pauseOnGesture = true;
+  } else {
+    pauseOnGesture = false;
+  }
+}
+</script>
+</head>
+<body onload="init();">
+<h1>Leap WebSocket JSON Viewer</h1>
+<button id="pause" onclick="togglePause()">Pause</button>
+<input type="checkbox" id="pauseOnGesture" onclick="pauseForGestures()">Pause on gesture</input>
+<div id="connection">WebSocket not connected</div>
+<div id="main" style="visibility:hidden">
+  <h3>JSON Frame data:</h3>
+  <div id="output"></div>
+</div>
+</body>
+</html>

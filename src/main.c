@@ -10,6 +10,13 @@
 #include <AR/param.h>			// arParamDisp()
 #include <AR/ar.h>
 #include <AR/gsub_lite.h>
+#include <curl/curl.h>
+#include "jsmn.h"
+#include <unistd.h>
+#include "json.h"
+#include "log.h"
+#include "buf.h"
+
 
 // ============================================================================
 //	Constants
@@ -61,6 +68,18 @@ struct triples {
 };
 static struct triples VERTS;
 
+char *KEYS[] = {"norm_position_x", "norm_position_y", "norm_position_z" };
+
+static float px0 = 0.0f;
+static float py0 = 0.0f;
+static float pz0 = 0.0f;
+static float px1 = 0.0f;
+static float py1 = 0.0f;
+static float pz1 = 0.5f;
+static float PX = 0.0f;
+static float PY = 0.0f;
+static float PZ = 0.5f;
+
 // ============================================================================
 //	Functions
 // ============================================================================
@@ -68,18 +87,15 @@ static struct triples VERTS;
 static void DrawItem(void)
 {
 	printf("%s\n", "Start draw.");
-	printf("winx = %d\n", glutGet(GLUT_WINDOW_X));
-	printf("max x = %d\n", glutGet(GLUT_WINDOW_WIDTH));
+	// printf("winx = %d\n", glutGet(GLUT_WINDOW_X));
+	// printf("max x = %d\n", glutGet(GLUT_WINDOW_WIDTH));
 	static GLuint polyList = 0;
 	float fSize = 30.0f;
 	int i = 0;
-	int j = 0;
-	const vertices[8][3] = { {1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {-1.0, -1.0, 1.0}, {-1.0, 1.0, 1.0},
-	{1.0, 1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0} };
 	if (!polyList) {
 		polyList = glGenLists (1);
 		glNewList(polyList, GL_COMPILE);
-		printf("%d\n", num_verts);
+		// printf("%d\n", num_verts);
 		glBegin (GL_POINTS);
 		for (i = 0; i < num_verts; i++){
 			glColor3f(1.0, 0.0, 1.0);
@@ -96,14 +112,165 @@ static void DrawItem(void)
 	}
 	
 	glPushMatrix(); // Save world coordinate system.
-	glTranslatef(0.0, 0.0, 0.5); // Place base of cube on marker surface.
+	glTranslatef(PX, PY, PZ); // Place base of cube on marker surface.
 	glRotatef(gDrawRotateAngle, 0.0, 0.0, 1.0); // Rotate about z axis.
 	// glDisable(GL_LIGHTING);	// Just use colours.
 	glCallList(polyList);	// Draw the cube.
 	glPopMatrix();	// Restore world coordinate system.
 	printf("%s\n", "Done drawing!");
-
 }
+
+int read_leap_dump(void)
+{
+	printf("%s\n", "Reaadding???");
+	int count = 1;
+    char* js = 0;
+    long length;
+    FILE * f = fopen ("../src/leap_data.json", "rb");
+    if (f)
+    {
+      printf("%s\n", "File Found");
+      fseek (f, 0, SEEK_END);
+      length = ftell (f);
+      fseek (f, 0, SEEK_SET);
+      js = malloc (length);
+      if (js)
+      {
+      	printf("%s\n", "File non trivial");
+        fread (js, 1, length, f);
+        *(js + length) = '\0';
+      }
+      fclose (f);
+    }
+
+    printf("%s\n", "before tokenize");
+    // sleep(2);
+    puts(js);
+    printf("%s\n", "naah");
+    printf("%c\n", *(js + length - 1));
+    jsmntok_t *tokens = json_tokenise(js);
+    printf("%s\n", "done tokenize");
+
+    /* The GitHub user API response is a single object. States required to
+     * parse this are simple: start of the object, keys, values we want to
+     * print, values we want to skip, and then a marker state for the end. */
+
+    typedef enum { START, KEY, PRINT, SKIP, STOP } parse_state;
+    parse_state state = START;
+
+    size_t object_tokens = 0;
+	size_t i; 
+	size_t j;
+    for (i = 0, j = 1; j > 0; i++, j--)
+    {
+        jsmntok_t *t = &tokens[i];
+
+        // Should never reach uninitialized tokens
+        log_assert(t->start != -1 && t->end != -1);
+
+        if (t->type == JSMN_ARRAY || t->type == JSMN_OBJECT)
+            j += t->size;
+
+        switch (state)
+        {
+            case START:
+                if (t->type != JSMN_OBJECT)
+                    log_die("Invalid response: root element must be an object.");
+
+                state = KEY;
+                object_tokens = t->size;
+
+                if (object_tokens == 0)
+                    state = STOP;
+
+                if (object_tokens % 2 != 0)
+                    log_die("Invalid response: object must have even number of children.");
+
+                break;
+
+            case KEY:
+                object_tokens--;
+
+                if (t->type != JSMN_STRING)
+                    log_die("Invalid response: object keys must be strings.");
+
+                state = SKIP;
+				size_t i;
+                for (i = 0; i < sizeof(KEYS)/sizeof(char *); i++)
+                {
+                    if (json_token_streq(js, t, KEYS[i]))
+                    {
+                        printf("%s: ", KEYS[i]);
+                        state = PRINT;
+                        break;
+                    }
+                }
+
+                break;
+
+            case SKIP:
+                if (t->type != JSMN_STRING && t->type != JSMN_PRIMITIVE)
+                    log_die("Invalid response: object values must be strings or primitives.");
+
+                object_tokens--;
+                state = KEY;
+
+                if (object_tokens == 0)
+                    state = STOP;
+
+                break;
+
+            case PRINT:
+                if (t->type != JSMN_STRING && t->type != JSMN_PRIMITIVE)
+                    log_die("Invalid response: object values must be strings or primitives.");
+
+                char *str = json_token_tostr(js, t);
+                puts(str);
+
+		        char * pch;
+		        printf ("Splitting string \"%s\" into tokens:\n",str);
+		        pch = strtok (str,":");
+		        while (pch != NULL)
+		        {
+		            printf ("%s\n",pch);
+		            if (count == 1) {
+		            	py1 = atof(pch);
+		            } 
+
+		            if (count == 2) {
+		            	pz1 = atof(pch);
+		            }
+
+		            if (count == 3){
+		            	px1 = atof(pch);
+		            }
+
+		            pch = strtok (NULL, " ");
+		        }                
+
+                object_tokens--;
+                state = KEY;
+
+                count++;
+
+                if (object_tokens == 0)
+                    state = STOP;
+
+                break;
+
+
+            case STOP:
+                // Just consume the tokens
+                break;
+
+            default:
+                log_die("Invalid state %u", state);
+        }
+    }
+
+    return 0;
+}
+
 
 void parse(void)
 {
@@ -126,50 +293,50 @@ void parse(void)
 }
 
 // Something to look at, draw a rotating colour cube.
-static void DrawCube(void)
-{
-	// Colour cube data.
-	static GLuint polyList = 0;
-	float fSize = 0.5f;
-	long f, i;	
-	const GLfloat cube_vertices [8][3] = {
-	{1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {-1.0, -1.0, 1.0}, {-1.0, 1.0, 1.0},
-	{1.0, 1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0} };
-	const GLfloat cube_vertex_colors [8][3] = {
-	{1.0, 1.0, 1.0}, {1.0, 1.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0},
-	{1.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0} };
-	GLint cube_num_faces = 6;
-	const short cube_faces [6][4] = {
-	{3, 2, 1, 0}, {2, 3, 7, 6}, {0, 1, 5, 4}, {3, 0, 4, 7}, {1, 2, 6, 5}, {4, 5, 6, 7} };
+// static void DrawCube(void)
+// {
+// 	// Colour cube data.
+// 	static GLuint polyList = 0;
+// 	float fSize = 0.5f;
+// 	long f, i;	
+// 	const GLfloat cube_vertices [8][3] = {
+// 	{1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {-1.0, -1.0, 1.0}, {-1.0, 1.0, 1.0},
+// 	{1.0, 1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0} };
+// 	const GLfloat cube_vertex_colors [8][3] = {
+// 	{1.0, 1.0, 1.0}, {1.0, 1.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0},
+// 	{1.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0} };
+// 	GLint cube_num_faces = 6;
+// 	const short cube_faces [6][4] = {
+// 	{3, 2, 1, 0}, {2, 3, 7, 6}, {0, 1, 5, 4}, {3, 0, 4, 7}, {1, 2, 6, 5}, {4, 5, 6, 7} };
 	
-	if (!polyList) {
-		polyList = glGenLists (1);
-		glNewList(polyList, GL_COMPILE);
-		glBegin (GL_QUADS);
-		for (f = 0; f < cube_num_faces; f++)
-			for (i = 0; i < 4; i++) {
-				glColor3f (cube_vertex_colors[cube_faces[f][i]][0], cube_vertex_colors[cube_faces[f][i]][1], cube_vertex_colors[cube_faces[f][i]][2]);
-				glVertex3f(cube_vertices[cube_faces[f][i]][0] * fSize, cube_vertices[cube_faces[f][i]][1] * fSize, cube_vertices[cube_faces[f][i]][2] * fSize);
-			}
-		glEnd ();
-		glColor3f (0.0, 0.0, 0.0);
-		for (f = 0; f < cube_num_faces; f++) {
-			glBegin (GL_LINE_LOOP);
-			for (i = 0; i < 4; i++)
-				glVertex3f(cube_vertices[cube_faces[f][i]][0] * fSize, cube_vertices[cube_faces[f][i]][1] * fSize, cube_vertices[cube_faces[f][i]][2] * fSize);
-			glEnd ();
-		}
-		glEndList ();
-	}
+// 	if (!polyList) {
+// 		polyList = glGenLists (1);
+// 		glNewList(polyList, GL_COMPILE);
+// 		glBegin (GL_QUADS);
+// 		for (f = 0; f < cube_num_faces; f++)
+// 			for (i = 0; i < 4; i++) {
+// 				glColor3f (cube_vertex_colors[cube_faces[f][i]][0], cube_vertex_colors[cube_faces[f][i]][1], cube_vertex_colors[cube_faces[f][i]][2]);
+// 				glVertex3f(cube_vertices[cube_faces[f][i]][0] * fSize, cube_vertices[cube_faces[f][i]][1] * fSize, cube_vertices[cube_faces[f][i]][2] * fSize);
+// 			}
+// 		glEnd ();
+// 		glColor3f (0.0, 0.0, 0.0);
+// 		for (f = 0; f < cube_num_faces; f++) {
+// 			glBegin (GL_LINE_LOOP);
+// 			for (i = 0; i < 4; i++)
+// 				glVertex3f(cube_vertices[cube_faces[f][i]][0] * fSize, cube_vertices[cube_faces[f][i]][1] * fSize, cube_vertices[cube_faces[f][i]][2] * fSize);
+// 			glEnd ();
+// 		}
+// 		glEndList ();
+// 	}
 	
-	glPushMatrix(); // Save world coordinate system.
-	glTranslatef(0.0, 0.0, 0.5); // Place base of cube on marker surface.
-	glRotatef(gDrawRotateAngle, 0.0, 0.0, 1.0); // Rotate about z axis.
-	glDisable(GL_LIGHTING);	// Just use colours.
-	glCallList(polyList);	// Draw the cube.
-	glPopMatrix();	// Restore world coordinate system.
+// 	glPushMatrix(); // Save world coordinate system.
+// 	glTranslatef(0.0, 0.0, 0.5); // Place base of cube on marker surface.
+// 	glRotatef(gDrawRotateAngle, 0.0, 0.0, 1.0); // Rotate about z axis.
+// 	glDisable(GL_LIGHTING);	// Just use colours.
+// 	glCallList(polyList);	// Draw the cube.
+// 	glPopMatrix();	// Restore world coordinate system.
 	
-}
+// }
 
 static void DrawCubeUpdate(float timeDelta)
 {
@@ -432,6 +599,21 @@ static void Display(void)
 	// (I.e. must be specified before viewing transformations.)
 	//none
 	
+	//Read leap dump
+	int koo = read_leap_dump();
+
+	int dx = px1 - px0;
+	int dy = py1 - py0;
+	int dz = pz1 - pz0;
+
+	px0 = px1;
+	py0 = py1;
+	pz0 = pz1;
+
+	PX = 15*dx + PX;
+	PY = 15*dy + PY;
+	PZ = 15*dz + PZ;
+
 	if (snapToMarker && gPatt_found) {
 	
 		// Calculate the camera position relative to the marker.

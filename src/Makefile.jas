@@ -1,0 +1,22 @@
+CFLAGS+=-Wall -Werror -std=gnu99 -O2 
+LDFLAGS+=`curl-config --libs`
+
+TARGETS=leap
+OBJS=buf.o log.o json.o jsmn.o
+
+all: $(TARGETS)
+
+clean:
+	$(RM) $(TARGETS)
+	$(RM) $(OBJS)
+
+twitter: $(OBJS) twitter.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+github: $(OBJS) github.o
+	$(CC) -o $@ $^ $(LDFLAGS) 
+
+leap: $(OBJS) leap.o
+	$(CC) -o $@ $^ $(LDFLAGS) 
+
+.PHONY: all clean
