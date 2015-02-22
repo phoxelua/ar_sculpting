@@ -1,0 +1,2 @@
+java -classpath .:/usr/lib/Leap/LeapJava.jar:json-simple-1.1.1.jar -Djava.library.path=/usr/lib/Leap Sample
+javac -classpath "/usr/lib/Leap/LeapJava.jar:json-simple-1.1.1.jar" Sample.java" 

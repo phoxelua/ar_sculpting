@@ -99,7 +99,7 @@ class SampleListener extends Listener {
     public void onFrame(Controller controller) {
         // Get the most recent frame and report some basic information
         Frame frame = controller.frame();
-        if (frame.timestamp() % 100 == 0) {
+        if (frame.timestamp() % 100/2 == 0) {
             // System.out.println("Frame id: " + frame.id()
             //         + ", timestamp: " + frame.timestamp()
             //         + ", hands: " + frame.hands().count()
@@ -114,13 +114,13 @@ class SampleListener extends Listener {
             for (Hand hand : frame.hands()) {
                 String handType = hand.isLeft() ? "Left hand" : "Right hand";
                 Vector normPos = box.normalizePoint(hand.palmPosition());
-                // System.out.println("  " + handType + ", id: " + hand.id()
-                //         + ", normalized palm position: " + normPos);
+                System.out.println("  " + handType + ", id: " + hand.id()
+                        + ", normalized palm position: " + normPos);
  
-                // System.out.println("LEFT: " + onLeft(normPos) + " " + normPos.getX());
-                // System.out.println("RIGHT: " + onRight(normPos) + " " + normPos.getX());
-                // System.out.println("TOP: " + onTop(normPos));
-                // System.out.println("BOTTOM: " + onBottom(normPos));
+                System.out.println("LEFT: " + onLeft(normPos) + " " + normPos.getX());
+                System.out.println("RIGHT: " + onRight(normPos) + " " + normPos.getX());
+                System.out.println("TOP: " + onTop(normPos));
+                System.out.println("BOTTOM: " + onBottom(normPos));
  
                 // Get the hand's normal vector and direction
                 Vector normal = hand.palmNormal();
@@ -144,11 +144,16 @@ class SampleListener extends Listener {
                     obj.put("norm_position_y", positions[1]);
                     obj.put("norm_position_z", positions[2]);
 
-                    // StringWriter out = new StringWriter();
-                    // obj.writeJSONString(out);
-                      
-                    // String jsonText = out.toString();
-                    // System.out.print(jsonText);
+                    int refCount = 1;
+                    FileReader fr = new FileReader("refCount.txt");
+                    char [] a = new char[1];
+                    while(refCount > 0){
+                        fr.read(a); // reads the content to the array
+                        refCount = Character.getNumericValue(a[0]);
+                        System.out.println("refCount: " + refCount); //prints the characters one by one
+                        Thread.sleep(100);
+                    }
+                    fr.close();                        
 
                     System.out.println("Writting JSON into file ...");
                     System.out.println(obj); 

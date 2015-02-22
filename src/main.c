@@ -68,11 +68,13 @@ struct triples {
 };
 static struct triples VERTS;
 
+static int registered = FALSE; 
+
 char *KEYS[] = {"norm_position_x", "norm_position_y", "norm_position_z" };
 
 static float px0 = 0.0f;
 static float py0 = 0.0f;
-static float pz0 = 0.0f;
+static float pz0 = 0.5f;
 static float px1 = 0.0f;
 static float py1 = 0.0f;
 static float pz1 = 0.5f;
@@ -111,45 +113,82 @@ static void DrawItem(void)
 		glEndList ();
 	}
 	
+	if (!registered){
+		PX = 0.0f;
+		PY = 0.0f;
+		PZ = 0.0f;
+	}
+
 	glPushMatrix(); // Save world coordinate system.
+	printf("PX %f", PX);
+	printf(" PY %f", PY);
+	printf(" PZ %f\n", PZ);
 	glTranslatef(PX, PY, PZ); // Place base of cube on marker surface.
 	glRotatef(gDrawRotateAngle, 0.0, 0.0, 1.0); // Rotate about z axis.
 	// glDisable(GL_LIGHTING);	// Just use colours.
 	glCallList(polyList);	// Draw the cube.
 	glPopMatrix();	// Restore world coordinate system.
 	printf("%s\n", "Done drawing!");
+	registered = TRUE;
+}
+
+void lock(void)
+{
+	FILE *f0 = fopen("../src/refCount.txt", "w");
+	if (f0 == NULL)
+	{
+	    printf("Error opening file!\n");
+	    exit(1);
+	}
+
+	/* print integers and floats */
+	fprintf(f0, "%f", 1);
+
+	fclose(f0);	
+}
+
+void unlock(void)
+{
+	FILE *f0 = fopen("../src/refCount.txt", "w");
+	if (f0 == NULL)
+	{
+	    printf("Error opening file!\n");
+	    exit(1);
+	}
+
+	/* print integers and floats */
+	fprintf(f0, "%f", 0);
+
+	fclose(f0);	
 }
 
 int read_leap_dump(void)
 {
-	printf("%s\n", "Reaadding???");
+	// printf("%s\n", "Reaadding???");
+	lock();
+
+
 	int count = 1;
     char* js = 0;
     long length;
     FILE * f = fopen ("../src/leap_data.json", "rb");
     if (f)
     {
-      printf("%s\n", "File Found");
+      // printf("%s\n", "File Found");
       fseek (f, 0, SEEK_END);
       length = ftell (f);
       fseek (f, 0, SEEK_SET);
       js = malloc (length);
       if (js)
       {
-      	printf("%s\n", "File non trivial");
+      	// printf("%s\n", "File non trivial");
         fread (js, 1, length, f);
         *(js + length) = '\0';
       }
       fclose (f);
     }
 
-    printf("%s\n", "before tokenize");
-    // sleep(2);
-    puts(js);
-    printf("%s\n", "naah");
-    printf("%c\n", *(js + length - 1));
     jsmntok_t *tokens = json_tokenise(js);
-    printf("%s\n", "done tokenize");
 
     /* The GitHub user API response is a single object. States required to
      * parse this are simple: start of the object, keys, values we want to
@@ -268,6 +307,7 @@ int read_leap_dump(void)
         }
     }
 
+    unlock();
     return 0;
 }
 
@@ -602,17 +642,19 @@ static void Display(void)
 	//Read leap dump
 	int koo = read_leap_dump();
 
-	int dx = px1 - px0;
-	int dy = py1 - py0;
-	int dz = pz1 - pz0;
+	float dx = px1 - px0;
+	float dy = py1 - py0;
+	float dz = pz1 - pz0;
+
+	printf("dx %f\n", dx);
 
 	px0 = px1;
 	py0 = py1;
 	pz0 = pz1;
 
-	PX = 15*dx + PX;
-	PY = 15*dy + PY;
-	PZ = 15*dz + PZ;
+	PX = 10*dx + PX;
+	PY = 10*dy + PY;
+	PZ = 10*dz + PZ;
 
 	if (snapToMarker && gPatt_found) {
 	
