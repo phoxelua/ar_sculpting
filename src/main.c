@@ -58,7 +58,7 @@ static int gDrawRotate = FALSE;
 static float gDrawRotateAngle = 0;			// For use in drawing.
 
 //More keyboard control vars
-static int snapToMarker = TRUE;
+static int snapToMarker = FALSE;
 
 
 //janky data structs cuz i hate c
@@ -512,6 +512,17 @@ static void Keyboard(unsigned char key, int x, int y)
 		case 's':
 			snapToMarker = !snapToMarker;
 			printf("snapToMarker set to %s\n", snapToMarker);
+		case 'X':
+		case 'x':
+			px0 = 0.0f;
+			py0 = 0.0f;
+			pz0 = 0.0f;
+			px1 = 0.0f;
+			py1 = 0.0f;
+			pz1 = 0.0f;
+			PX = 0.0f;
+			PY = 0.0f;
+			PZ = 0.0f;
 		// case '?':
 		// case '/':
 		// 	printf("Keys:\n");
@@ -652,9 +663,12 @@ static void Display(void)
 	py0 = py1;
 	pz0 = pz1;
 
-	PX = 10*dx + PX;
-	PY = 10*dy + PY;
-	PZ = 10*dz + PZ;
+	float stepX = 100.0f / glutGet(GLUT_WINDOW_X);
+	float stepY = 100.0f/ glutGet(GLUT_WINDOW_Y);
+
+	PX = stepX*dx + PX;
+	PY = stepY*dy + PY;
+	PZ = stepX*dz + PZ;
 
 	if (snapToMarker && gPatt_found) {
 	
@@ -689,7 +703,7 @@ int main(int argc, char** argv)
 	//
 	// Camera configuration.
 	//
-	char *vconf = "v4l2src device=/dev/video0 use-fixed-fps=false ! ffmpegcolorspace ! capsfilter caps=video/x-raw-rgb,bpp=24,width=320,height=240 ! identity name=artoolkit ! fakesink";
+	char *vconf = "v4l2src device=/dev/video0 ! ffmpegcolorspace ! capsfilter caps=video/x-raw-rgb,bpp=24,width=320,height=240 ! identity name=artoolkit ! fakesink";
 	const char *patt_name  = "Data/patt.kanji";
 	
 	// ----------------------------------------------------------------------------
